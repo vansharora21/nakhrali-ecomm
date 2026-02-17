@@ -9,6 +9,10 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+
+app.get("/", (req, res) => {
+  res.send("E-Commerce Backend Running");
+});
 app.listen(PORT,async()=>{
     await connectDB();
     console.log("JWT_SECRET loaded:", !!process.env.JWT_SECRET); 

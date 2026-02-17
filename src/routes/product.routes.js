@@ -54,15 +54,21 @@ router.get("/find/:id", async (req, res) => {
 router.get("/", async (req, res) => {
   const qNew = req.query.new;
   const qCategory = req.query.category;
+  console.log("GET /api/products hit. Query:", req.query);
   try {
     let products;
+
     if (qNew) {
+      console.log("Fetching new products (limit 1)");
       products = await Product.find().sort({ createdAt: -1 }).limit(1);
     } else if (qCategory) {
-      products = await Product.find({ categories: { $in: [qCategory] } });
+      console.log("Fetching products by category:", qCategory);
+      products = await Product.find({ category: qCategory });
     } else {
+      console.log("Fetching all products");
       products = await Product.find();
     }
+    console.log(`Found ${products.length} products`);
     res.status(200).json(products);
   } catch (err) {
     res.status(500).json(err);
