@@ -1,16 +1,63 @@
 import express from "express";
 import Order from "../models/Order.js";
+import crypto from 'crypto';
 import {
   verifyToken,
   verifyTokenAndAuthorization,
   verifyTokenAndAdmin,
 } from "../middleware/verifyToken.js";
 
+
 const router = express.Router();
 
 // CREATE
 router.post("/", verifyToken, async (req, res) => {
-  const newOrder = new Order(req.body);
+  const { paymentMethod, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+  let orderData = { ...req.body };
+
+  // Demo Payment for testing - no gateway needed
+  if (paymentMethod === 'Demo') {
+    orderData.payment = true;
+    orderData.status = 'Placed';
+  }
+
+  // Razorpay - verify signature before saving order
+  if (paymentMethod === 'Razorpay') {
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({ message: 'Missing Razorpay payment details' });
+    }
+    const sign = `${razorpayOrderId}|${razorpayPaymentId}`;
+    const expected = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(sign)
+      .digest('hex');
+
+    if (expected !== razorpaySignature) {
+      return res.status(400).json({ message: 'Invalid payment signature. Order not saved.' });
+    }
+    orderData.payment = true;
+    orderData.status = 'Placed';
+  }
+
+  // COD - payment remains false, status = Placed
+
+
+  // Auto-log first tracking entry on order creation
+  const payNote = paymentMethod === 'Demo'
+    ? 'Order confirmed via Demo payment'
+    : paymentMethod === 'Razorpay'
+      ? 'Order confirmed — Paid via Razorpay'
+      : 'Order placed — Cash on Delivery';
+
+  orderData.trackingHistory = [{
+    status: 'Placed',
+    note: payNote,
+    timestamp: new Date()
+  }];
+
+  const newOrder = new Order(orderData);
 
   try {
     const savedOrder = await newOrder.save();
@@ -20,12 +67,28 @@ router.post("/", verifyToken, async (req, res) => {
   }
 });
 
-// UPDATE
+// UPDATE (Admin) — updates status and appends to tracking history
 router.put("/:id", verifyTokenAndAdmin, async (req, res) => {
   try {
+    const { status, note, ...rest } = req.body;
+
+    const updateObj = { $set: rest };
+
+    if (status) {
+      updateObj.$set.status = status;
+      // Push a new tracking event into history
+      updateObj.$push = {
+        trackingHistory: {
+          status,
+          note: note || `Order status updated to ${status}`,
+          timestamp: new Date()
+        }
+      };
+    }
+
     const updatedOrder = await Order.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      updateObj,
       { new: true }
     );
     res.status(200).json(updatedOrder);

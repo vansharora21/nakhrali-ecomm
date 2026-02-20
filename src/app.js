@@ -7,6 +7,8 @@ import cartRoutes from "./routes/cart.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 
+import paymentRoutes from "./routes/payment.routes.js";
+
 const app = express();
 
 app.use(express.json()); // 🔥 THIS IS REQUIRED
@@ -23,6 +25,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/carts", cartRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/payment", paymentRoutes);
 
 // Basic error handling middleware
 app.use((err, req, res, next) => {

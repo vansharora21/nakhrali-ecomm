@@ -9,11 +9,12 @@ const router = express.Router();
 
 router.post("/register", async (req, res) => {
   try {
-    if (!req.body || !req.body.username || !req.body.email || !req.body.password) {
-      return res.status(400).json("Missing required fields: username, email, password");
+    if (!req.body || !req.body.username || !req.body.email || !req.body.password || !req.body.name) {
+      return res.status(400).json("Missing required fields: name, username, email, password");
     }
 
     const newUser = new User({
+      name: req.body.name,
       username: req.body.username,
       email: req.body.email,
       password: bcrypt.hashSync(req.body.password, 10),
